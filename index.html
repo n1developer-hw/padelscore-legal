@@ -1,0 +1,826 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="robots" content="index,follow" />
+  <title>PadelScore — Padel/Tennis scoring on Huawei Watch</title>
+  <meta name="description" content="PadelScore is a minimal, high-contrast Huawei Watch (HarmonyOS) app for padel/tennis scoring. One-tap points, auto-save & resume, match history, best-of-3/5, deuce modes, and tie-break support — fully offline." />
+  <link rel="canonical" href="https://padelscore.top/" />
+  <meta name="theme-color" content="#f2f5ff" />
+  <link rel="icon" href="assets/logo.svg" type="image/svg+xml" />
+  <meta property="og:title" content="PadelScore — Padel/Tennis scoring on Huawei Watch" />
+  <meta property="og:description" content="One-tap scoring on your wrist. Offline. Auto-save & resume. Best-of-3/5. Deuce modes. Tie-break." />
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://padelscore.top/" />
+
+  <style>
+    :root {
+      color-scheme: light dark;
+      --bg: #f8faff;
+      --bg2: #f0f4ff;
+      --text: #0f172a;
+      --muted: #475569;
+      --border: rgba(15, 23, 42, .08);
+      --card: rgba(255,255,255,.85);
+      --card2: rgba(255,255,255,.95);
+      --shadow: 0 20px 70px rgba(37, 99, 235, .12);
+      --shadow2: 0 10px 40px rgba(37, 99, 235, .08);
+      --radius: 20px;
+      --brand: #2563eb;
+      --brand2: #06b6d4;
+      --accent: #8b5cf6;
+      --pill: rgba(37, 99, 235, .06);
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #0a0e1a;
+        --bg2: #0f1629;
+        --text: #e2e8f0;
+        --muted: #94a3b8;
+        --border: rgba(255,255,255,.10);
+        --card: rgba(255,255,255,.04);
+        --card2: rgba(255,255,255,.08);
+        --shadow: 0 20px 80px rgba(0,0,0,.60);
+        --shadow2: 0 10px 40px rgba(0,0,0,.40);
+        --brand: #60a5fa;
+        --brand2: #22d3ee;
+        --accent: #a78bfa;
+        --pill: rgba(96, 165, 250, .08);
+      }
+    }
+
+    * { box-sizing: border-box; }
+    html, body { height: 100%; }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      line-height: 1.6;
+      color: var(--text);
+      background: var(--bg);
+      position: relative;
+      overflow-x: hidden;
+    }
+    body:before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      background:
+        radial-gradient(1100px 500px at 20% 8%, color-mix(in srgb, var(--brand2) 14%, transparent), transparent),
+        radial-gradient(1000px 600px at 85% 12%, color-mix(in srgb, var(--accent) 12%, transparent), transparent),
+        radial-gradient(900px 500px at 50% 95%, color-mix(in srgb, var(--brand) 10%, transparent), transparent);
+      z-index: 0;
+    }
+    .wrap { position: relative; z-index: 1; }
+
+    a { color: var(--brand); text-decoration: none; transition: color .2s ease; }
+    a:hover { color: var(--brand2); text-decoration: none; }
+
+    .wrap { max-width: 1280px; margin: 0 auto; padding: 0 32px 96px; }
+    @media (max-width: 680px) {
+      .wrap { padding: 0 20px 64px; }
+    }
+
+    /* Animated decorative lines */
+    .anim-lines {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 0;
+      opacity: .08;
+    }
+    .anim-line {
+      position: absolute;
+      background: linear-gradient(90deg, transparent, var(--brand), transparent);
+      animation: slide 25s linear infinite;
+    }
+    .anim-line:nth-child(1) { width: 100%; height: 1px; top: 10%; left: -100%; animation-delay: 0s; }
+    .anim-line:nth-child(2) { width: 100%; height: 2px; top: 25%; left: -100%; animation-delay: 3s; }
+    .anim-line:nth-child(3) { width: 100%; height: 1px; top: 40%; left: -100%; animation-delay: 6s; }
+    .anim-line:nth-child(4) { width: 100%; height: 2px; top: 55%; left: -100%; animation-delay: 9s; }
+    .anim-line:nth-child(5) { width: 100%; height: 1px; top: 70%; left: -100%; animation-delay: 12s; }
+    .anim-line:nth-child(6) { width: 100%; height: 1px; top: 85%; left: -100%; animation-delay: 15s; }
+    @keyframes slide { to { left: 100%; } }
+
+    /* Top nav */
+    .topbar {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 20px;
+      padding: 24px 32px;
+      backdrop-filter: blur(20px) saturate(180%);
+      background: color-mix(in srgb, var(--bg) 40%, transparent);
+      border-bottom: 1px solid color-mix(in srgb, var(--border) 50%, transparent);
+      margin: 0 -32px 16px;
+    }
+    @media (max-width: 680px) {
+      .topbar { padding: 20px 20px; margin: 0 -20px 16px; }
+    }
+    .brand {
+      display: inline-flex;
+      align-items: center;
+      gap: 16px;
+      font-weight: 900;
+      font-size: 28px;
+      color: var(--text);
+      white-space: nowrap;
+      transition: transform .2s ease;
+    }
+    .brand:hover { transform: scale(1.02); }
+    .brand img { width: 72px; height: 72px; border-radius: 18px; box-shadow: var(--shadow2); }
+    @media (max-width: 680px) {
+      .brand { font-size: 24px; gap: 12px; }
+      .brand img { width: 56px; height: 56px; }
+    }
+
+    nav {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+
+    .navpill {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 13px 20px;
+      border-radius: 999px;
+      border: 1px solid transparent;
+      background: transparent;
+      color: var(--muted);
+      transition: all .2s ease;
+      font-weight: 600;
+      font-size: 16px;
+      white-space: nowrap;
+    }
+    .navpill:hover {
+      color: var(--text);
+      background: var(--pill);
+    }
+    .navpill.primary {
+      border: 1px solid var(--border);
+      background: linear-gradient(135deg, var(--brand), var(--brand2));
+      color: white;
+      font-weight: 700;
+      box-shadow: 0 4px 16px rgba(37, 99, 235, .25);
+    }
+    .navpill.primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 24px rgba(37, 99, 235, .35);
+      color: white;
+    }
+    @media (max-width: 680px) {
+      .navpill { padding: 11px 16px; font-size: 15px; }
+    }
+
+    /* Hero */
+    .hero {
+      margin-top: 32px;
+      position: relative;
+    }
+    .hero-inner {
+      position: relative;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 48px;
+      padding: 48px 0;
+      align-items: center;
+    }
+    @media (max-width: 980px) { 
+      .hero-inner { grid-template-columns: 1fr; gap: 32px; padding: 32px 0; } 
+    }
+
+    .kicker {
+      display: inline-flex;
+      gap: 8px;
+      align-items: center;
+      padding: 8px 14px;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      background: var(--card);
+      color: var(--brand);
+      font-size: 14px;
+      font-weight: 600;
+      width: fit-content;
+      margin-bottom: 20px;
+      box-shadow: var(--shadow2);
+    }
+    .kicker span:first-child { 
+      color: var(--brand2);
+      font-size: 10px;
+    }
+    h1 {
+      margin: 0 0 24px;
+      font-size: 72px;
+      line-height: 1.08;
+      letter-spacing: -2px;
+      font-weight: 900;
+      background: linear-gradient(135deg, var(--text), color-mix(in srgb, var(--text) 70%, var(--brand)));
+      -webkit-background-clip: text;
+      background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    @media (max-width: 760px) { h1 { font-size: 52px; letter-spacing: -1.5px; } }
+    @media (max-width: 560px) { h1 { font-size: 40px; letter-spacing: -1px; } }
+
+    .lead {
+      margin: 0;
+      color: var(--muted);
+      font-size: 20px;
+      line-height: 1.7;
+      max-width: 62ch;
+    }
+    @media (max-width: 680px) { .lead { font-size: 18px; } }
+
+    .actions {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-top: 28px;
+    }
+    .actions .navpill {
+      padding: 14px 28px;
+      font-size: 16px;
+    }
+
+    .chips {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-top: 20px;
+    }
+    .chip {
+      display: inline-flex;
+      align-items: center;
+      padding: 11px 18px;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      background: var(--card);
+      color: var(--muted);
+      font-size: 15px;
+      font-weight: 600;
+      white-space: nowrap;
+      box-shadow: var(--shadow2);
+    }
+
+    /* Media */
+    .hero-media {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      align-items: start;
+    }
+    @media (max-width: 560px) { .hero-media { grid-template-columns: 1fr; } }
+    figure.watch {
+      margin: 0;
+      border-radius: 28px;
+      border: 1px solid var(--border);
+      background: var(--card);
+      overflow: hidden;
+      box-shadow: var(--shadow);
+      transition: transform .3s ease, box-shadow .3s ease;
+    }
+    figure.watch:hover {
+      transform: translateY(-8px);
+      box-shadow: 0 24px 80px rgba(37, 99, 235, .18);
+    }
+    figure.watch img { width: 100%; height: auto; display: block; }
+
+    /* Stats banner */
+    .stats-banner {
+      margin-top: 64px;
+      padding: 48px 32px;
+      border: 1px solid var(--border);
+      border-radius: 28px;
+      background: var(--card);
+      box-shadow: var(--shadow);
+      text-align: center;
+    }
+    .stats-banner h2 {
+      margin: 0 0 40px;
+      font-size: 38px;
+      letter-spacing: -1px;
+    }
+    @media (max-width: 680px) {
+      .stats-banner h2 { font-size: 28px; }
+    }
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 32px;
+    }
+    .stat-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+    }
+    .stat-num {
+      font-size: 56px;
+      font-weight: 900;
+      line-height: 1;
+      background: linear-gradient(135deg, var(--brand), var(--brand2));
+      -webkit-background-clip: text;
+      background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    @media (max-width: 680px) {
+      .stat-num { font-size: 44px; }
+    }
+    .stat-label {
+      color: var(--muted);
+      font-size: 17px;
+      font-weight: 600;
+    }
+
+    /* Sections */
+    section { margin-top: 96px; }
+    .section-head {
+      text-align: center;
+      margin-bottom: 48px;
+    }
+    h2 { 
+      margin: 0 0 16px; 
+      font-size: 48px; 
+      letter-spacing: -1.2px; 
+      font-weight: 800;
+      background: linear-gradient(135deg, var(--text), color-mix(in srgb, var(--text) 65%, var(--brand)));
+      -webkit-background-clip: text;
+      background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    @media (max-width: 680px) { h2 { font-size: 36px; letter-spacing: -0.9px; } }
+    .sub { margin: 0; color: var(--muted); font-size: 19px; line-height: 1.6; }
+    @media (max-width: 680px) { .sub { font-size: 17px; } }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(12, 1fr);
+      gap: 20px;
+    }
+    .card {
+      grid-column: span 4;
+      border: 1px solid var(--border);
+      border-radius: 24px;
+      background: var(--card);
+      box-shadow: var(--shadow2);
+      padding: 28px 24px;
+      transition: all .3s ease;
+    }
+    .card:hover {
+      transform: translateY(-6px);
+      box-shadow: var(--shadow);
+      border-color: color-mix(in srgb, var(--border) 50%, var(--brand) 50%);
+    }
+    @media (max-width: 980px) { .card { grid-column: span 6; } }
+    @media (max-width: 680px) { .card { grid-column: span 12; } }
+
+    .card h3 { margin: 0 0 12px; font-size: 21px; letter-spacing: -0.4px; font-weight: 700; }
+    .card p { margin: 0; color: var(--muted); line-height: 1.7; font-size: 16px; }
+    .icon {
+      width: 54px;
+      height: 54px;
+      border-radius: 18px;
+      background: linear-gradient(135deg, var(--brand), var(--brand2));
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      margin-bottom: 16px;
+      box-shadow: 0 8px 20px rgba(37, 99, 235, .25);
+    }
+    .icon svg { width: 24px; height: 24px; }
+
+    /* How it works */
+    .timeline {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 24px;
+    }
+
+    .step {
+      border: 1px solid var(--border);
+      border-radius: 24px;
+      background: var(--card);
+      box-shadow: var(--shadow2);
+      padding: 32px 24px;
+      text-align: center;
+      transition: all .3s ease;
+    }
+    .step:hover {
+      transform: translateY(-6px);
+      box-shadow: var(--shadow);
+    }
+    .stephead {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 16px;
+      margin-bottom: 16px;
+    }
+    .num {
+      width: 56px;
+      height: 56px;
+      border-radius: 999px;
+      border: 2px solid var(--border);
+      background: linear-gradient(135deg, var(--brand), var(--brand2));
+      color: white;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 900;
+      font-size: 22px;
+      letter-spacing: -0.5px;
+      box-shadow: 0 8px 20px rgba(37, 99, 235, .25);
+    }
+    .stephead h3 { margin: 0; font-size: 21px; letter-spacing: -0.4px; font-weight: 700; }
+    .step p { margin: 0; color: var(--muted); line-height: 1.7; font-size: 16px; }
+
+    /* Screenshots */
+    .shots {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 20px;
+    }
+    @media (max-width: 1060px) { .shots { grid-template-columns: repeat(3, 1fr); } }
+    @media (max-width: 760px) { .shots { grid-template-columns: repeat(2, 1fr); } }
+    @media (max-width: 460px) { .shots { grid-template-columns: 1fr; } }
+    .shots figure {
+      margin: 0;
+      border-radius: 28px;
+      border: 1px solid var(--border);
+      background: var(--card);
+      box-shadow: var(--shadow2);
+      overflow: hidden;
+      transition: all .3s ease;
+    }
+    .shots figure:hover {
+      transform: translateY(-8px) scale(1.02);
+      box-shadow: var(--shadow);
+    }
+    .shots img { width: 100%; height: auto; display: block; }
+
+    /* FAQ */
+    details {
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      background: var(--card);
+      box-shadow: var(--shadow2);
+      padding: 24px 28px;
+      transition: all .2s ease;
+    }
+    details:hover {
+      border-color: color-mix(in srgb, var(--border) 50%, var(--brand) 50%);
+    }
+    details + details { margin-top: 16px; }
+    summary { 
+      cursor: pointer; 
+      font-weight: 700; 
+      font-size: 19px;
+      letter-spacing: -0.3px; 
+      list-style: none;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    summary::-webkit-details-marker { display: none; }
+    summary:after {
+      content: '+';
+      font-size: 28px;
+      font-weight: 300;
+      color: var(--brand);
+      transition: transform .2s ease;
+    }
+    details[open] summary:after {
+      transform: rotate(45deg);
+    }
+    details p { margin: 16px 0 0; color: var(--muted); line-height: 1.7; font-size: 16px; }
+
+    footer {
+      margin-top: 96px;
+      padding: 48px 0 32px;
+      border-top: 1px solid var(--border);
+      color: var(--muted);
+      font-size: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+    .footlinks { display: flex; gap: 20px; flex-wrap: wrap; }
+    .footlinks a {
+      color: var(--muted);
+      transition: color .2s ease;
+    }
+    .footlinks a:hover { color: var(--brand); }
+  </style>
+</head>
+
+<body>
+  <div class="anim-lines">
+    <div class="anim-line"></div>
+    <div class="anim-line"></div>
+    <div class="anim-line"></div>
+    <div class="anim-line"></div>
+    <div class="anim-line"></div>
+    <div class="anim-line"></div>
+  </div>
+
+  <div class="wrap">
+    <div class="topbar">
+      <a class="brand" href="./index.html" aria-label="PadelScore home">
+        <img src="assets/logo.svg" alt="PadelScore" width="72" height="72" />
+        <span>PadelScore</span>
+      </a>
+      <nav aria-label="Primary navigation">
+        <a class="navpill" href="#features">Features</a>
+        <a class="navpill" href="#how">How it works</a>
+        <a class="navpill" href="#screenshots">Screenshots</a>
+        <a class="navpill" href="#faq">FAQ</a>
+        <a class="navpill" href="#contact">Contact</a>
+        <a class="navpill" href="privacy-policy.html">Privacy Policy</a>
+        <a class="navpill primary" href="#download">Download</a>
+      </nav>
+    </div>
+
+    <header class="hero" id="top">
+      <div class="hero-inner">
+        <div>
+          <div class="kicker">
+            <span aria-hidden="true">●</span>
+            <span>Huawei Watch • HarmonyOS • Padel / Tennis</span>
+          </div>
+          <h1>Keep score on your wrist — one tap at a time.</h1>
+          <p class="lead">
+            <strong>PadelScore</strong> is a minimal, high‑contrast Huawei Watch app for padel/tennis scoring during a match:
+            big touch targets, clear current score, auto‑save & resume, and local match history — fully offline.
+          </p>
+          <div class="actions">
+            <a class="navpill primary" href="#download">Download</a>
+            <a class="navpill" href="#features">Explore features</a>
+          </div>
+          <div class="chips" aria-label="Highlights">
+            <span class="chip">Offline</span>
+            <span class="chip">Auto‑save & resume</span>
+            <span class="chip">Best of 3 / Best of 5</span>
+            <span class="chip">Advantage / Golden Point / Win by 2</span>
+            <span class="chip">Tie‑break at 6–6</span>
+          </div>
+        </div>
+
+        <div class="hero-media" aria-label="App preview screenshots">
+          <figure class="watch">
+            <img src="assets/screenshots/final2_Main_score.png" alt="PadelScore live scoring screen on Huawei Watch" loading="eager" decoding="async" />
+          </figure>
+          <figure class="watch">
+            <img src="assets/screenshots/final2_Controls.png" alt="PadelScore controls screen (undo, pause, finish) on Huawei Watch" loading="lazy" decoding="async" />
+          </figure>
+        </div>
+      </div>
+    </header>
+
+    <div class="stats-banner">
+      <h2>Trusted by padel & tennis players worldwide</h2>
+      <div class="stats-grid">
+        <div class="stat-item">
+          <div class="stat-num">100%</div>
+          <div class="stat-label">Offline</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-num">0</div>
+          <div class="stat-label">Data collected</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-num">∞</div>
+          <div class="stat-label">Matches</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-num">24/7</div>
+          <div class="stat-label">Available</div>
+        </div>
+      </div>
+    </div>
+
+    <section id="features" aria-label="Features">
+      <div class="section-head">
+        <h2>Features</h2>
+        <p class="sub">Designed for round screens and outdoor visibility.</p>
+      </div>
+
+      <div class="grid">
+        <div class="card">
+          <div class="icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none">
+              <path d="M7 7h10v10H7z" stroke="currentColor" stroke-width="2" />
+              <path d="M4 4h4M16 4h4M4 20h4M16 20h4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            </svg>
+          </div>
+          <h3>One‑tap scoring</h3>
+          <p>Tap Team 1 or Team 2 to award a point. The current points, games, sets, and serving indicator stay clear.</p>
+        </div>
+
+        <div class="card">
+          <div class="icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none">
+              <path d="M12 6v6l4 2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M21 12a9 9 0 1 1-9-9" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            </svg>
+          </div>
+          <h3>Auto‑save & resume</h3>
+          <p>Match state is periodically saved so you can resume after a restart and keep playing.</p>
+        </div>
+
+        <div class="card">
+          <div class="icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none">
+              <path d="M7 12h10" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+              <path d="M12 7v10" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+              <path d="M4 12a8 8 0 1 1 16 0" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            </svg>
+          </div>
+          <h3>Padel/Tennis rules</h3>
+          <p>Best of 3/5 sets, tie‑break at 6–6, and configurable deuce mode (Advantage, Golden Point, or Win by 2).</p>
+        </div>
+
+        <div class="card">
+          <div class="icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none">
+              <path d="M9 14l2 2 4-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M7 3h10v4H7z" stroke="currentColor" stroke-width="2"/>
+              <path d="M6 7h12v14H6z" stroke="currentColor" stroke-width="2"/>
+            </svg>
+          </div>
+          <h3>Local match history</h3>
+          <p>Stores recent completed matches locally on the watch (date, duration, final sets score). No cloud sync.</p>
+        </div>
+
+        <div class="card">
+          <div class="icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none">
+              <path d="M6 8h12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+              <path d="M6 12h12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+              <path d="M6 16h12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            </svg>
+          </div>
+          <h3>Undo / pause / finish</h3>
+          <p>Undo the last point, pause the match timer, or finish the match with a confirmation prompt.</p>
+        </div>
+
+        <div class="card">
+          <div class="icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none">
+              <path d="M8 12l2 2 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M12 22a10 10 0 1 0-10-10" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            </svg>
+          </div>
+          <h3>Offline by design</h3>
+          <p>No accounts, no analytics, and no network communication required for normal operation.</p>
+        </div>
+      </div>
+    </section>
+
+    <section id="how" aria-label="How it works">
+      <div class="section-head">
+        <h2>How it works</h2>
+        <p class="sub">Get started in 5 simple steps and focus on the match</p>
+      </div>
+
+      <div class="timeline">
+        <div class="step">
+          <div class="stephead">
+            <span class="num">01</span>
+            <h3>Install PadelScore</h3>
+          </div>
+          <p>Install the app on your Huawei Watch (HarmonyOS).</p>
+        </div>
+        <div class="step">
+          <div class="stephead">
+            <span class="num">02</span>
+            <h3>Open & play</h3>
+          </div>
+          <p>Tap Start. If there's an unfinished match, you can resume it.</p>
+        </div>
+        <div class="step">
+          <div class="stephead">
+            <span class="num">03</span>
+            <h3>Match setup</h3>
+          </div>
+          <p>Select best‑of format, optional time limit, and deuce mode (Advantage / Golden Point / Win by 2).</p>
+        </div>
+        <div class="step">
+          <div class="stephead">
+            <span class="num">04</span>
+            <h3>Who serves first</h3>
+          </div>
+          <p>Choose the starting serving team. Serving and side indicator update during the match.</p>
+        </div>
+        <div class="step">
+          <div class="stephead">
+            <span class="num">05</span>
+            <h3>Track points live</h3>
+          </div>
+          <p>Tap the team that won the rally. The app manages games/sets and tie‑break automatically.</p>
+        </div>
+      </div>
+    </section>
+
+    <section id="screenshots" aria-label="Screenshots">
+      <div class="section-head">
+        <h2>Screenshots</h2>
+        <p class="sub">Real UI screens from the watch app.</p>
+      </div>
+      <div class="shots">
+        <figure><img src="assets/screenshots/final2_Main_scr.png" alt="Game settings screen" loading="lazy" decoding="async" /></figure>
+        <figure><img src="assets/screenshots/final2_Settings_2.png" alt="Deuce mode settings screen" loading="lazy" decoding="async" /></figure>
+        <figure><img src="assets/screenshots/final2_Main_score.png" alt="Live score screen" loading="lazy" decoding="async" /></figure>
+        <figure><img src="assets/screenshots/final2_Main_score_2.png" alt="Serve indicator screen" loading="lazy" decoding="async" /></figure>
+        <figure><img src="assets/screenshots/final2_Controls.png" alt="Controls screen" loading="lazy" decoding="async" /></figure>
+        <figure><img src="assets/screenshots/final2_History.png" alt="History screen" loading="lazy" decoding="async" /></figure>
+        <figure><img src="assets/screenshots/final2_Match-score.png" alt="Match score screen" loading="lazy" decoding="async" /></figure>
+        <figure><img src="assets/screenshots/final2_Settings.png" alt="Start screen" loading="lazy" decoding="async" /></figure>
+      </div>
+    </section>
+
+    <section id="faq" aria-label="FAQ">
+      <div class="section-head">
+        <h2>FAQ</h2>
+        <p class="sub">Quick answers.</p>
+      </div>
+      <details>
+        <summary>Does it work without internet?</summary>
+        <p>Yes. PadelScore is designed for offline use. Match state and history are stored locally on the watch.</p>
+      </details>
+      <details>
+        <summary>Will I lose my match if the app closes?</summary>
+        <p>No. The match is periodically auto‑saved, and you can resume after restart.</p>
+      </details>
+      <details>
+        <summary>Which scoring rules are supported?</summary>
+        <p>0/15/30/40 scoring, tie‑break at 6–6, and configurable deuce mode: Advantage, Golden Point, or Win by 2.</p>
+      </details>
+      <details>
+        <summary>Do you collect data?</summary>
+        <p>No. The app does not send data to the developer, does not use analytics, and does not require an account. See <a href="privacy-policy.html">Privacy Policy</a>.</p>
+      </details>
+    </section>
+
+    <section id="download" aria-label="Download">
+      <div class="section-head">
+        <h2>Download</h2>
+        <p class="sub">Store link will be added here when available.</p>
+      </div>
+      <div class="grid">
+        <div class="card" style="grid-column: span 12;">
+          <h3 style="margin:0 0 8px;">PadelScore for Huawei Watch</h3>
+          <p style="margin:0;">
+            Want the download link as soon as it’s published? Email
+            <a href="mailto:padelscore.top@gmail.com">padelscore.top@gmail.com</a>.
+          </p>
+          <div class="actions">
+            <a class="navpill primary" href="mailto:padelscore.top@gmail.com?subject=PadelScore%20Download%20Link">Request link</a>
+            <a class="navpill" href="privacy-policy.html">Privacy Policy</a>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="contact" aria-label="Contact">
+      <div class="section-head">
+        <h2>Contact</h2>
+        <p class="sub">Questions about the app, publishing, or privacy.</p>
+      </div>
+      <div class="grid">
+        <div class="card" style="grid-column: span 6;">
+          <h3>Email</h3>
+          <p><a href="mailto:padelscore.top@gmail.com">padelscore.top@gmail.com</a></p>
+        </div>
+        <div class="card" style="grid-column: span 6;">
+          <h3>Legal</h3>
+          <p><a href="privacy-policy.html">Privacy Policy</a></p>
+        </div>
+      </div>
+    </section>
+
+    <footer>
+      <div>PadelScore © 2026</div>
+      <div class="footlinks">
+        <a href="#top">Top</a>
+        <a href="#features">Features</a>
+        <a href="#how">How it works</a>
+        <a href="#faq">FAQ</a>
+        <a href="privacy-policy.html">Privacy Policy</a>
+      </div>
+    </footer>
+  </div>
+</body>
+</html>
+
